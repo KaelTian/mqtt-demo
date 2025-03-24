@@ -1,0 +1,38 @@
+version: '3'
+services:
+  mqtt-broker:
+    image: eclipse-mosquitto
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+    user: "1000:1000"  # 使用当前用户的 UID 和 GID
+    healthcheck:
+      test: ["CMD", "mosquitto_pub", "-h", "localhost", "-t", "test", "-m", "test"]
+      interval: 5s
+      timeout: 1s
+      retries: 10
+  mqtt-producer:
+    build:
+      context: .
+      dockerfile: Dockerfile.producer
+    environment:
+      - MQTT_BROKER_HOST=mqtt-broker
+      - MQTT_BROKER_PORT=1883
+    depends_on:
+      mqtt-broker:
+        condition: service_healthy  # 等待 mqtt-broker 健康检查通过
+
+  mqtt-consumer:
+    build:
+      context: .
+      dockerfile: Dockerfile.consumer
+    environment:
+      - MQTT_BROKER_HOST=mqtt-broker
+      - MQTT_BROKER_PORT=1883
+    depends_on:
+      mqtt-broker:
+        condition: service_healthy  # 等待 mqtt-broker 健康检查通过
